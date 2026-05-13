@@ -1,78 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace RiidePood
 {
     public abstract class Riideese : IMuugitoode
     {
-        private string nimi;
-        private double hind;
-        private string suurus;
-        private string varv;
-        private int kogus;
+        protected string nimi;
+        protected double hind;
+        protected string varv;
+        protected Dictionary<string, int> suurused;
 
-        public Riideese(string nimi, double hind, string suurus, string varv, int kogus)
+        public Riideese(string nimi, double hind, string varv, Dictionary<string, int> suurused)
         {
             this.nimi = nimi;
-            SetHind(hind);
-            SetSuurus(suurus);
-            LisaKogus(kogus);
-            this.varv = varv;
-        }
-
-        public void SetHind(double hind)
-        {
-            if (hind <= 0)
-                throw new ArgumentException("Hind peab olema suurem kui 0");
-
             this.hind = hind;
+            this.varv = varv;
+            this.suurused = suurused;
         }
 
-        public void SetSuurus(string suurus)
+        public double GetHind() => hind;
+
+        public virtual int GetKogus() => suurused.Values.Sum();
+
+        public bool OnSuurusOlemas(string suurus)
         {
-            string[] lubatud = { "XS", "S", "M", "L", "XL" };
-
-            if (Array.IndexOf(lubatud, suurus) == -1)
-                throw new ArgumentException("Vale suurus");
-
-            this.suurus = suurus;
+            return suurused.ContainsKey(suurus) && suurused[suurus] > 0;
         }
 
-        public void LisaKogus(int kogus)
+        public string SaadavaltSuurused()
         {
-            if (kogus < 0)
-                throw new ArgumentException("Kogus ei tohi olla negatiivne");
+            var saadaval = suurused.Where(x => x.Value > 0).Select(x => x.Key);
+            return string.Join(", ", saadaval);
+        }
 
-            this.kogus += kogus;
+        public virtual void VahendaKogus(string suurus, int maugikogus)
+        {
+            if (!OnSuurusOlemas(suurus)) throw new Exception("Seda suurust ei ole laos!");
+            suurused[suurus] -= maugikogus;
         }
 
         public void VahendaKogus(int kogus)
         {
-            if (kogus < 0)
-                throw new ArgumentException("Kogus ei tohi olla negatiivne");
-
-            if (this.kogus - kogus < 0)
-                throw new ArgumentException("Laoseis ei tohi minna alla 0");
-
-            this.kogus -= kogus;
+            var esimeneSaadaval = suurused.FirstOrDefault(x => x.Value > 0).Key;
+            if (esimeneSaadaval != null) VahendaKogus(esimeneSaadaval, kogus);
         }
 
-        public double GetHind()
-        {
-            return hind;
-        }
-
-        public int GetKogus()
-        {
-            return kogus;
-        }
-
-        public virtual string KuvaInfo()
-        {
-            return $"{nimi}, suurus: {suurus}, värv: {varv}, kogus: {kogus}";
-        }
-
+        public virtual string KuvaInfo() => $"{nimi} ({varv}) - Kokku laos: {GetKogus()}";
         public abstract double ArvutaLopphind();
     }
 }

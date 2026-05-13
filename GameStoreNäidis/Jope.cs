@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace RiidePood
 {
     public class Jope : Riideese
     {
-        public Jope(string nimi, double hind, string suurus, string varv, int kogus)
-            : base(nimi, hind, suurus, varv, kogus) { }
+        public Jope(string nimi, double hind, string varv, Dictionary<string, int> suurused)
+            : base(nimi, hind, varv, suurused) { }
 
         public override double ArvutaLopphind()
         {

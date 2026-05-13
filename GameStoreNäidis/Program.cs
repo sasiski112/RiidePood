@@ -1,86 +1,130 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace RiidePood
 {
-    using System;
-    using System.Collections.Generic;
-
     class Program
     {
+        static Dictionary<string, double> aktiivsedKaardid = new Dictionary<string, double>();
+
         static void Main()
         {
-            List<Riideese> kataloog = new List<Riideese>()
-        {
-            new TShirt("Valge T-särk", 15.99, "M", "valge", 10),
-            new Puksid("Mustad püksid", 29.99, "L", "must", 5),
-            new Jope("Talvejope", 89.99, "XL", "sinine", 3),
-            new Kleit("Suvekleit", 39.99, "S", "punane", 7),
-            new Jalanoud("Tossud", 59.99, "M", "valge", 4)
-        };
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            List<IMuugitoode> kataloog = new List<IMuugitoode>()
+            {
+                new TShirt("Stiilne T-särk", 19.90, "Valge", new Dictionary<string, int>{{ "M", 5 }, { "XS", 2 }}),
+                new Puksid("Mustad püksid", 29.99, "Must", new Dictionary<string, int>{{ "L", 6 }}),
+                new Jope("Talvejope", 89.99, "Sinine", new Dictionary<string, int>{{ "L", 4 }}),
+                new Kleit("Suvekleit", 39.99, "Punane", new Dictionary<string, int>{{ "S", 7 }}),
+                new Jalanoud("Tossud", 59.99, "Valge", new Dictionary<string, int>{{ "M", 5 }}),
+                new Kinkekaart(20),
+                new Kinkekaart(50),
+                new Kinkekaart(100)
+            };
 
             while (true)
             {
-                Console.OutputEncoding = System.Text.Encoding.UTF8;
-                Console.Clear();
-                Console.WriteLine("=== TOOTEKATALOOG ===");
+                List<(IMuugitoode Toode, string Suurus, double Hind)> ostukorv = new List<(IMuugitoode, string, double)>();
 
-                for (int i = 0; i < kataloog.Count; i++)
+                while (true)
                 {
-                    Console.WriteLine(
-                        $"{i + 1}. {kataloog[i].KuvaInfo()} | Hind: {kataloog[i].ArvutaLopphind():F2} €"
-                    );
+                    Console.Clear();
+                    Console.WriteLine("=== MEIE POOD ===");
+                    for (int i = 0; i < kataloog.Count; i++)
+                        Console.WriteLine($"{i + 1}. {kataloog[i].KuvaInfo()} | {kataloog[i].ArvutaLopphind():F2} €");
+
+                    Console.WriteLine("\n--- OSTUKORV ---");
+                    if (ostukorv.Count == 0) Console.WriteLine("Tühi");
+                    else foreach (var item in ostukorv) Console.WriteLine($"- {item.Toode.KuvaInfo()} ({item.Suurus})");
+
+                    Console.Write("\nVali toote number (L - Lõpeta/Maksa, 0 - Välju): ");
+                    string sisend = Console.ReadLine().ToUpper();
+
+                    if (sisend == "0") return;
+                    if (sisend == "L") break;
+
+                    if (!int.TryParse(sisend, out int valik) || valik < 1 || valik > kataloog.Count)
+                    {
+                        Console.WriteLine("Viga: Sellist toodet pole! Vajuta suvalist klahvi...");
+                        Console.ReadKey();
+                        continue;
+                    }
+
+                    IMuugitoode toode = kataloog[valik - 1];
+                    string valitudSuurus = "Kaart";
+
+                    if (toode is Riideese riie)
+                    {
+                        if (riie.GetKogus() <= 0) { Console.WriteLine("Toode on otsas!"); Console.ReadKey(); continue; }
+
+                        while (true)
+                        {
+                            Console.Write($"Vali suurus ({riie.SaadavaltSuurused()}): ");
+                            valitudSuurus = Console.ReadLine().ToUpper();
+                            if (riie.OnSuurusOlemas(valitudSuurus)) break;
+                            Console.WriteLine("Viga: Seda suurust pole või sisend on vale.");
+                        }
+                    }
+
+                    ostukorv.Add((toode, valitudSuurus, toode.ArvutaLopphind()));
+                    Console.WriteLine("Lisatud!");
+                    System.Threading.Thread.Sleep(500);
                 }
 
-                Console.WriteLine("\nVali toote number (0 = välju): ");
-                int valik;
+                if (ostukorv.Count == 0) continue;
 
-                if (!int.TryParse(Console.ReadLine(), out valik) || valik < 0 || valik > kataloog.Count)
+                double summa = ostukorv.Sum(x => x.Hind);
+                Console.WriteLine($"\nKokku: {summa:F2} €");
+
+                while (true)
                 {
-                    Console.WriteLine("Vale sisend!");
-                    Console.ReadKey();
-                    continue;
-                }
+                    Console.Write("Kas sul on sooduskood? (Jah/Ei): ");
+                    string vastus = Console.ReadLine().ToLower();
 
-                if (valik == 0)
-                    break;
-
-                Riideese valitud = kataloog[valik - 1];
-
-                Console.WriteLine($"Kui palju soovid osta? (Saadaval: {valitud.GetKogus()})");
-                int kogus;
-
-                if (!int.TryParse(Console.ReadLine(), out kogus) || kogus <= 0)
-                {
-                    Console.WriteLine("Vale kogus!");
-                    Console.ReadKey();
-                    continue;
+                    if (vastus == "jah")
+                    {
+                        Console.Write("Sisesta kood: ");
+                        string kood = Console.ReadLine();
+                        if (aktiivsedKaardid.ContainsKey(kood))
+                        {
+                            double allahindlus = aktiivsedKaardid[kood];
+                            aktiivsedKaardid.Remove(kood);
+                            summa = Math.Max(0, summa - allahindlus);
+                            Console.WriteLine($"Soodustus {allahindlus} € rakendatud!");
+                        }
+                        else Console.WriteLine("Viga: Kood on vale või kasutatud.");
+                        break;
+                    }
+                    else if (vastus == "ei")
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Viga: Palun vasta 'Jah' või 'Ei'.");
+                    }
                 }
 
                 try
                 {
-                    double hind = valitud.ArvutaLopphind();
-                    double koguhind = hind * kogus;
+                    foreach (var item in ostukorv)
+                    {
+                        if (item.Toode is Riideese r) r.VahendaKogus(item.Suurus, 1);
+                        else item.Toode.VahendaKogus(1);
 
-                    valitud.VahendaKogus(kogus);
-
-                    Console.WriteLine($"Ost õnnestus! Maksid: {koguhind:F2} €");
+                        if (item.Toode is Kinkekaart kaart)
+                        {
+                            aktiivsedKaardid.Add(kaart.Kood, kaart.ArvutaLopphind());
+                            Console.WriteLine($"Uus kood: {kaart.Kood} ({kaart.ArvutaLopphind()} €)");
+                        }
+                    }
+                    Console.WriteLine($"\nTEHING ÕNNESTUS! Kokku makstud: {summa:F2} €");
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Viga: " + e.Message);
-                }
+                catch (Exception e) { Console.WriteLine("Viga: " + e.Message); }
 
-                Console.WriteLine("\nUuendatud nimekiri:");
-                foreach (var ese in kataloog)
-                {
-                    Console.WriteLine(
-                        $"{ese.KuvaInfo()} | Hind: {ese.ArvutaLopphind():F2} €"
-                    );
-                }
-
-                Console.WriteLine("\nVajuta klahvi jätkamiseks...");
+                Console.WriteLine("\nVajuta suvalist klahvi uue ostu alustamiseks...");
                 Console.ReadKey();
             }
         }
